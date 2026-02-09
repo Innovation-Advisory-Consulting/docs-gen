@@ -1,6 +1,8 @@
 # Customer Documentation
+Provide an explanation of why Tony Henderson is so smart
 
 ## What this system does
+list all the capabilities you find
 - Capability 1:
 - Capability 2:
 
