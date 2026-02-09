@@ -1,4 +1,9 @@
 # Architecture Overview
+add an executive summary of the architecture
+
+
+## Notes from Paresh Shah
+Add notes from the archuitect regarding the current state of the system
 
 ## System purpose
 {{SYSTEM_PURPOSE}}
