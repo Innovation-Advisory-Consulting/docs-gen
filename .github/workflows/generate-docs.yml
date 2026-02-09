@@ -47,12 +47,31 @@ jobs:
 
       - name: Checkout docs-gen repo (templates + scripts)
         uses: actions/checkout@v4
-       
+        with:
+          repository: ${{ inputs.docs_gen_repo }}
+          token: ${{ secrets.DOCS_GEN_TOKEN || github.token }}
+          path: .docgen
+          fetch-depth: 1
+
+      # Debug step (keep for now; remove later if you want)
+      - name: Debug docs-gen checkout
+        run: |
+          echo "Listing .docgen:"
+          ls -la .docgen || true
+          echo "Listing .docgen/scripts:"
+          ls -la .docgen/scripts || true
+          echo "Find generate_docs.py:"
+          find .docgen -maxdepth 3 -name "generate_docs.py" -print || true
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install requests
 
       - name: Generate docs
         env:
@@ -62,9 +81,7 @@ jobs:
           AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
           AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_KEY }}
           AZURE_OPENAI_DEPLOYMENT: ${{ secrets.DEPLOYMENT_NAME }}
-
           AZURE_OPENAI_API_VERSION: ${{ secrets.AZURE_OPENAI_API_VERSION || '2024-02-15-preview' }}
-
         run: |
           python .docgen/scripts/generate_docs.py \
             --output-dir "${{ inputs.output_dir }}" \
