@@ -3,18 +3,36 @@ name: Generate Docs (Reusable)
 on:
   workflow_call:
     inputs:
+      docs_gen_repo:
+        type: string
+        required: true
       output_dir:
         type: string
-        required: false
-        default: "docs/generated"
+        default: docs/generated
       doc_set:
         type: string
-        required: false
         default: "architecture,developer,processes,customer"
       create_pr:
         type: boolean
-        required: false
         default: false
+      mode:
+        type: string
+        default: "ai"
+      max_context_chars:
+        type: number
+        default: 120000
+
+    secrets:
+      AZURE_OPENAI_ENDPOINT:
+        required: true
+      AZURE_OPENAI_KEY:
+        required: true
+      DEPLOYMENT_NAME:
+        required: true
+      AZURE_OPENAI_API_VERSION:
+        required: false
+      DOCS_GEN_TOKEN:
+        required: false
 
 jobs:
   generate:
@@ -30,8 +48,8 @@ jobs:
       - name: Checkout docs-gen repo (templates + scripts)
         uses: actions/checkout@v4
         with:
-          repository: Innovation-Advisory-Consulting/docs-gen
-          ##token: ${{ secrets.DOCS_GEN_TOKEN }}
+          repository: ${{ inputs.docs_gen_repo }}
+          token: ${{ secrets.DOCS_GEN_TOKEN }}
           path: .docgen
           fetch-depth: 1
 
@@ -40,17 +58,27 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Generate docs (MVP)
+      - name: Generate docs
+        env:
+          DOCGEN_MODE: ${{ inputs.mode }}
+          MAX_CONTEXT_CHARS: ${{ inputs.max_context_chars }}
+
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_KEY }}
+          AZURE_OPENAI_DEPLOYMENT: ${{ secrets.DEPLOYMENT_NAME }}
+
+          AZURE_OPENAI_API_VERSION: ${{ secrets.AZURE_OPENAI_API_VERSION || '2024-02-15-preview' }}
+
         run: |
           python .docgen/scripts/generate_docs.py \
             --output-dir "${{ inputs.output_dir }}" \
             --doc-set "${{ inputs.doc_set }}"
 
-      - name: Commit changes (if not PR)
+      - name: Commit generated docs
         if: ${{ inputs.create_pr == false }}
         run: |
           git config user.name "docs-gen-bot"
           git config user.email "docs-gen-bot@users.noreply.github.com"
           git add "${{ inputs.output_dir }}"
           git commit -m "chore(docs): auto-generate documentation" || echo "No changes"
-          git push || echo "No push"
+          git push || echo "Push skipped"
