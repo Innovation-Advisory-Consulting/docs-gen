@@ -47,11 +47,7 @@ jobs:
 
       - name: Checkout docs-gen repo (templates + scripts)
         uses: actions/checkout@v4
-        with:
-          repository: ${{ inputs.docs_gen_repo }}
-          token: ${{ secrets.DOCS_GEN_TOKEN }}
-          path: .docgen
-          fetch-depth: 1
+       
 
       - name: Set up Python
         uses: actions/setup-python@v5
