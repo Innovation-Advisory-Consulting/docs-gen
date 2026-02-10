@@ -1,30 +1,85 @@
-# docs-gen (MVP)
+# docs-gen
 
-This repo provides a reusable GitHub workflow that can generate documentation for any target repo.
+Reusable GitHub workflow for AI-powered documentation generation. Analyzes your repository and generates comprehensive documentation using Azure OpenAI.
 
-## How target repos call it
+## Quick Start
 
-In a target repo, create `.github/workflows/docs.yml`:
+In your target repo, create `.github/workflows/docs.yml`:
 
 ```yaml
 name: Generate Documentation
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
   docs:
-    uses: <OWNER>/docs-gen/.github/workflows/generate-docs.yml@v1
+    uses: Innovation-Advisory-Consulting/docs-gen/.github/workflows/generate-docs.yml@main
     with:
+      docs_gen_repo: Innovation-Advisory-Consulting/docs-gen
       output_dir: docs/generated
-      doc_set: "architecture,developer,processes,customer"
+      doc_set: "core"
       create_pr: false
+      mode: "ai"
+      max_context_chars: 120000
+    secrets:
+      AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+      AZURE_OPENAI_KEY: ${{ secrets.AZURE_OPENAI_KEY }}
+      DEPLOYMENT_NAME: ${{ secrets.DEPLOYMENT_NAME }}
 ```
 
-## Azure OpenAI
+## Available Doc Sets
 
-MVP doesn’t call Azure OpenAI yet. Next iteration will add:
-- AZURE_OPENAI_ENDPOINT
-- AZURE_OPENAI_API_KEY
-- AZURE_OPENAI_DEPLOYMENT
-- AZURE_OPENAI_API_VERSION
+**Presets** (use these for quick generation):
+- `core` - Core system docs (10 docs: solution, architecture, diagrams, components, data flow, deployment, repo structure, build, dependencies, modules)
+- `ai` - AI/Automation docs (7 docs: overview, prompts, guardrails, testing, HITL, ops, privacy)
+- `api` - API/Integration docs (4 docs: reference, integration, auth, contracts)
+- `data` - Data docs (5 docs: schema, dictionary, logging, pipeline, retention)
+- `security` - Security docs (7 docs: overview, threat model, risk, secrets, vuln management, incident response, compliance)
+- `operations` - Operations docs (6 docs: runbook, monitoring, backup, release, support, capacity)
+- `engineering` - Engineering process docs (6 docs: onboarding, workflow, code review, standards, DoD, change management)
+- `customer` - Customer-facing docs (6 docs: solution, architecture, integration, security, ops, requirements)
+- `business` - Business docs (7 docs: executive brief, ROI, status, risk, roadmap, FAQ, marketing)
+
+**Examples**:
+```yaml
+# Single preset
+doc_set: "core"
+
+# Multiple presets
+doc_set: "core,security,operations"
+
+# Specific individual docs
+doc_set: "core-solution,core-architecture,security-overview"
+
+# Mix presets and individual docs
+doc_set: "core,ai-overview,customer-solution"
+```
+
+See [EXAMPLES.md](EXAMPLES.md) for complete list of individual doc keys.
+
+## Configuration
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `docs_gen_repo` | required | This repo (e.g., `Innovation-Advisory-Consulting/docs-gen`) |
+| `output_dir` | `docs/generated` | Where to save generated docs |
+| `doc_set` | `core` | Comma-separated doc sets or individual keys |
+| `create_pr` | `false` | Create PR instead of direct commit |
+| `mode` | `ai` | `ai` for AI generation, `static` for template copy |
+| `max_context_chars` | `120000` | Max repo context sent to AI |
+
+## Required Secrets
+
+Set these in your target repo's Settings → Secrets:
+- `AZURE_OPENAI_ENDPOINT` - Your Azure OpenAI endpoint URL
+- `AZURE_OPENAI_KEY` - Your Azure OpenAI API key
+- `DEPLOYMENT_NAME` - Your Azure OpenAI deployment name
+- `AZURE_OPENAI_API_VERSION` (optional) - Defaults to `2024-02-15-preview`
+- `DOCS_GEN_TOKEN` (optional) - Only needed if docs-gen repo is private
