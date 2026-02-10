@@ -86,6 +86,7 @@ def azure_chat(system: str, user: str) -> str:
 # Generation
 # -----------------------------
 DOCS = {
+    "solution": ("solution-overview.md", "SolutionOverview.md"),
     "architecture": ("architecture.md", "Architecture.md"),
     "developer": ("developer.md", "Developer.md"),
     "processes": ("processes.md", "BusinessProcesses.md"),
