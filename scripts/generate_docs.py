@@ -22,38 +22,132 @@ def git(cmd):
     except Exception:
         return ""
 
-def safe_repo_tree(max_lines: int = 500) -> str:
+def get_all_files() -> list[Path]:
+    """Get all tracked files from git"""
     out = git(["git", "ls-files"])
-    files = out.splitlines() if out else []
-    return "\n".join(files[:max_lines])
+    if not out:
+        return []
+    return [Path(f) for f in out.splitlines()]
 
-def pick_key_files() -> list[Path]:
-    candidates = [
-        Path("README.md"),
-        Path("package.json"),
-        Path("pyproject.toml"),
-        Path("requirements.txt"),
-        Path("Dockerfile"),
-        Path("docker-compose.yml"),
-        Path(".github/workflows"),
-    ]
-    picked = []
-    for c in candidates:
-        if c.is_file():
-            picked.append(c)
-        elif c.is_dir():
-            for wf in sorted(c.glob("*.yml"))[:3]:
-                picked.append(wf)
-    return picked
+def safe_repo_tree(max_lines: int = 1000) -> str:
+    """Full file tree with increased limit"""
+    files = get_all_files()
+    return "\n".join([str(f) for f in files[:max_lines]])
+
+def categorize_files(files: list[Path]) -> dict:
+    """Categorize files by type"""
+    cats = {"config": [], "source": [], "infra": [], "docs": [], "tests": [], "other": []}
+    
+    for f in files:
+        name = f.name.lower()
+        parts = [p.lower() for p in f.parts]
+        
+        # Config
+        if name in ["package.json", "pyproject.toml", "requirements.txt", "cargo.toml", "go.mod", "pom.xml"]:
+            cats["config"].append(f)
+        elif name.endswith((".json", ".yaml", ".yml", ".toml", ".ini")):
+            cats["config"].append(f)
+        # Infrastructure
+        elif name in ["dockerfile", "docker-compose.yml"] or ".github" in parts or "terraform" in parts:
+            cats["infra"].append(f)
+        # Docs
+        elif name.endswith((".md", ".rst", ".txt")) or "docs" in parts:
+            cats["docs"].append(f)
+        # Tests
+        elif "test" in parts or "test" in name or name.endswith(("_test.py", ".test.js", ".spec.ts")):
+            cats["tests"].append(f)
+        # Source
+        elif name.endswith((".py", ".js", ".ts", ".go", ".rs", ".java", ".cpp", ".c", ".cs", ".rb", ".php")):
+            cats["source"].append(f)
+        else:
+            cats["other"].append(f)
+    
+    return cats
+
+def extract_code_structure(path: Path) -> str:
+    """Extract key elements from source files"""
+    try:
+        content = read_text(path)
+        lines = content.split("\n")
+        key_lines = []
+        
+        # Get imports and definitions
+        for line in lines[:200]:  # Scan more lines
+            stripped = line.strip()
+            if any(kw in stripped for kw in ["import ", "from ", "require(", "class ", "def ", 
+                                              "function ", "interface ", "type ", "const ", "export "]):
+                key_lines.append(stripped)
+        
+        return "\n".join(key_lines[:50])  # Return top 50 key lines
+    except:
+        return ""
 
 def build_context(max_chars: int) -> str:
-    parts = ["## REPO TREE\n" + safe_repo_tree()]
-    for p in pick_key_files():
+    """Build comprehensive repository context"""
+    files = get_all_files()
+    cats = categorize_files(files)
+    
+    parts = []
+    
+    # 1. Overview
+    parts.append(f"""## REPOSITORY OVERVIEW
+Total files: {len(files)}
+- Config: {len(cats['config'])}
+- Source: {len(cats['source'])}
+- Infrastructure: {len(cats['infra'])}
+- Documentation: {len(cats['docs'])}
+- Tests: {len(cats['tests'])}
+""")
+    
+    # 2. Full file tree
+    parts.append("## FILE TREE\n" + safe_repo_tree(1000))
+    
+    # 3. Configuration files (full content)
+    parts.append("\n## CONFIGURATION FILES")
+    for f in cats["config"][:20]:
         try:
-            parts.append(f"\n## FILE: {p}\n{read_text(p)[:20000]}")
-        except Exception:
+            parts.append(f"\n### {f}\n{read_text(f)[:5000]}")
+        except:
             pass
-    return "\n".join(parts)[:max_chars]
+    
+    # 4. Infrastructure files
+    parts.append("\n## INFRASTRUCTURE")
+    for f in cats["infra"][:15]:
+        try:
+            parts.append(f"\n### {f}\n{read_text(f)[:5000]}")
+        except:
+            pass
+    
+    # 5. Documentation files
+    parts.append("\n## DOCUMENTATION")
+    for f in cats["docs"][:10]:
+        try:
+            content = read_text(f)
+            # README gets more space
+            max_len = 15000 if "readme" in f.name.lower() else 3000
+            parts.append(f"\n### {f}\n{content[:max_len]}")
+        except:
+            pass
+    
+    # 6. Source code structure (summaries)
+    parts.append("\n## SOURCE CODE STRUCTURE")
+    for f in cats["source"][:100]:  # Scan up to 100 source files
+        structure = extract_code_structure(f)
+        if structure:
+            parts.append(f"\n### {f}\n{structure}")
+    
+    # 7. Test files (sample)
+    if cats["tests"]:
+        parts.append("\n## TEST FILES")
+        for f in cats["tests"][:10]:
+            try:
+                parts.append(f"\n### {f}\n{extract_code_structure(f)}")
+            except:
+                pass
+    
+    # Combine and truncate to max_chars
+    full_context = "\n".join(parts)
+    return full_context[:max_chars]
 
 # -----------------------------
 # Azure OpenAI
@@ -87,7 +181,7 @@ def azure_chat(system: str, user: str) -> str:
 # -----------------------------
 DOCS = {
     # Core System Docs (1A-1J)
-    "core-solution": ("1A-Core-System-Docs-solution-overview(1).md", "1A-CoreSystem-SolutionOverview.md"),
+    "core-solution": ("1A-Core-System-Docs-solution-overview.md", "1A-CoreSystem-SolutionOverview.md"),
     "core-architecture": ("1B-Core-System-Docs-architecture-overview.md", "1B-CoreSystem-ArchitectureOverview.md"),
     "core-diagrams": ("1C-Core-System-Docs-architecture-diagrams.md", "1C-CoreSystem-ArchitectureDiagrams.md"),
     "core-components": ("1D-Core-System-Docs-system-components.md", "1D-CoreSystem-SystemComponents.md"),

@@ -1,6 +1,6 @@
 # docs-gen
 
-Reusable GitHub workflow for AI-powered documentation generation. Analyzes your repository and generates comprehensive documentation using Azure OpenAI.
+Reusable GitHub workflow for AI-powered documentation generation. Deeply analyzes your entire repository (all files, folders, and code structure) and generates comprehensive documentation using Azure OpenAI.
 
 ## Quick Start
 
@@ -73,7 +73,20 @@ See [EXAMPLES.md](EXAMPLES.md) for complete list of individual doc keys.
 | `doc_set` | `core` | Comma-separated doc sets or individual keys |
 | `create_pr` | `false` | Create PR instead of direct commit |
 | `mode` | `ai` | `ai` for AI generation, `static` for template copy |
-| `max_context_chars` | `120000` | Max repo context sent to AI |
+| `max_context_chars` | `120000` | Max repo context sent to AI (increase for larger repos) |
+
+## What Gets Analyzed
+
+The system performs deep analysis of your repository:
+- **All tracked files** (respects .gitignore)
+- **Complete directory structure** (up to 1000 files)
+- **Configuration files** (package.json, requirements.txt, etc.) - full content
+- **Infrastructure** (Dockerfiles, workflows, terraform) - full content
+- **Documentation** (README, existing docs) - full content
+- **Source code** (up to 100 files) - extracts imports, classes, functions
+- **Test files** (sample) - structure analysis
+
+This comprehensive scanning ensures the AI has full context of your codebase to generate accurate documentation.
 
 ## Required Secrets
 
